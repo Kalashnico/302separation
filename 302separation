@@ -1,0 +1,217 @@
+#!/usr/bin/env python3
+
+import sys
+
+
+class UserManager(object):
+    def __init__(self):
+        self.nb_users = 0
+        self.users = list()
+
+    def add_user(self, user):
+        self.nb_users += 1
+        self.users.append(user)
+
+    def get_user(self, name):
+        for user in self.users:
+            if user.get_name() == name:
+                return user
+        return False
+
+    def get_users_nb(self):
+        return self.nb_users
+
+    def get_users(self):
+        return self.users
+
+
+class User(object):
+    def __init__(self, name):
+        self.name = name
+        self.link = []
+
+    def __lt__(self, other):
+        return self.name < other.name
+
+    def add_link(self, user):
+        self.link.append(user)
+
+    def get_name(self):
+        return self.name
+
+    def get_links(self):
+        return self.link
+
+
+def read_file():
+    file = open(sys.argv[1], 'r')
+    file_data = file.readlines()
+
+    for line in file_data:
+        if line.find('is friends with') == -1:
+            print('Wrong format at line : ' + '\"' + line + '\"')
+            sys.exit(84)
+    return file_data
+
+
+def create_all_link(file_data, user_manager):
+
+    def get_names(line):
+        names = ['','']
+        line = line.replace('is friends with', '|')
+        tab = line.split()
+
+        i = 0
+        for token in tab:
+            if token.find('|') != -1:
+                i += 1
+                continue
+            names[i] += token
+            names[i] += ' '
+
+        names[0] = names[0].strip()
+        names[1] = names[1].strip()
+        return names
+
+    for line in file_data:
+        names = get_names(line)
+
+        if not user_manager.get_user(names[0]):
+            user1 = User(names[0])
+            user_manager.add_user(user1)
+        else:
+            user1 = user_manager.get_user(names[0])
+
+        if not user_manager.get_user(names[1]):
+            user2 = User(names[1])
+            user_manager.add_user(user2)
+        else:
+            user2 = user_manager.get_user(names[1])
+
+        user1.add_link(user2)
+        user2.add_link(user1)
+
+    return user_manager
+
+
+def connection(name1, name2, user_manager):
+    user1 = user_manager.get_user(name1)
+    user2 = user_manager.get_user(name2)
+
+    if user1 is False or user2 is False:
+        print('The guys you\'re asking for does not exist')
+        sys.exit(84)
+
+    if name1 == name2:
+        return 0
+
+    user1_links = user1.get_links()
+
+    for link in user1_links:
+        if link.get_name() == name2:
+            return 1
+
+    return 3
+
+
+def get_id_in_users_list(user_manager):
+    id_tab = []
+    users = user_manager.get_users()
+    users.sort()
+
+    for user in users:
+        id_tab.append(user.get_name())
+
+    return id_tab
+
+
+def sort_name(user_manager, opt):
+    users = user_manager.get_users()
+    users.sort()
+    if opt is True:
+        for user in users:
+            print(user.get_name())
+        print()
+    return users
+
+
+def matrice_adj(user_manager):
+    matrice_line = [0 for x in range(len(user_manager.get_users()))]
+    id_tab = get_id_in_users_list(user_manager)
+
+    users = sort_name(user_manager, True)
+
+    for user in users:
+        user_links = user.get_links()
+        for link in user_links:
+            for x in range(0, len(id_tab)):
+                if link.get_name() == id_tab[x]:
+                    matrice_line[x] = 1
+        matrice_string = ""
+        for item in matrice_line:
+            matrice_string += str(item)
+            matrice_string += " "
+        matrice_string = matrice_string.rstrip()
+        print(matrice_string)
+        matrice_line = [0 for x in range(len(user_manager.get_users()))]
+
+    return 0
+
+
+def matrice_base(user_manager):
+    matrice_line = [0 for x in range(len(user_manager.get_users()))]
+    id_tab = get_id_in_users_list(user_manager)
+
+    users = sort_name(user_manager, False)
+
+    for user in users:
+        user_links = user.get_links()
+        for link in user_links:
+            for x in range(0, len(id_tab)):
+                if link.get_name() == id_tab[x]:
+                    matrice_line[x] = connection(id_tab[x], link.get_name(), user_manager)
+        matrice_string = ""
+        for item in matrice_line:
+            matrice_string += str(item)
+            matrice_string += " "
+        matrice_string = matrice_string.rstrip()
+        print(matrice_string)
+        matrice_line = [0 for x in range(len(user_manager.get_users()))]
+
+
+if __debug__:
+    def print_all_links(user_manager):
+        users = user_manager.get_users()
+        for user in users:
+            user_links = user.get_links()
+            sys.stdout.write(user.get_name() + " is linked with : ")
+            for link in user_links:
+                sys.stdout.write(link.get_name() + " ")
+            print('\n-------------------------------')
+
+
+if __name__ == '__main__':
+
+    if len(sys.argv) != 3 and len(sys.argv) != 4:
+        print('Not enough arguments')
+        sys.exit(84)
+
+    try:
+        file_data = read_file()
+    except IOError:
+        sys.exit(84)
+
+    user_manager = UserManager()
+    user_manager = create_all_link(file_data, user_manager)
+    #print_all_links(user_manager)
+
+    if len(sys.argv) == 4:
+        number_connection = connection(sys.argv[2], sys.argv[3], user_manager)
+        print("degree of separation between " + sys.argv[2] + " and " + sys.argv[3] + ": " + str(number_connection))
+
+    if len(sys.argv) == 3:
+        matrice_adj(user_manager)
+        print()
+        matrice_base(user_manager)
+    sys.exit(0)
+
